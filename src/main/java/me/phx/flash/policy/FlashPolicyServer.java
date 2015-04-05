@@ -13,6 +13,7 @@ import io.netty.handler.timeout.IdleStateHandler;
  * Created by phoenix on 11/9/14.
  */
 public class FlashPolicyServer {
+    static final int PORT = Integer.parseInt(System.getProperty("port", "1843"));
 
     public void init(int port) throws InterruptedException {
 
@@ -43,6 +44,7 @@ public class FlashPolicyServer {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        new FlashPolicyServer().init(1843);
+        System.out.println("Server set up on port: " + PORT);
+        new FlashPolicyServer().init(PORT);
     }
 }
