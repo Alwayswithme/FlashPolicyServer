@@ -11,6 +11,7 @@ import io.netty.handler.timeout.IdleStateEvent;
  * Created by phoenix on 11/9/14.
  */
 public class FlashPolicyHandler extends SimpleChannelInboundHandler<String> {
+    // TODO use zero copy
     private static String xml = "<?xml version=\"1.0\"?>" +
             "<!DOCTYPE cross-domain-policy SYSTEM \"/xml/dtds/cross-domain-policy.dtd\">" +
             "<cross-domain-policy>"
