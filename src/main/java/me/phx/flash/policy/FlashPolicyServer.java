@@ -7,16 +7,23 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.DelimiterBasedFrameDecoder;
 import io.netty.handler.codec.Delimiters;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.net.URL;
+
 /**
- * Created by phoenix on 11/9/14.
+ * @author phoenix
  */
 public class FlashPolicyServer {
     static final int PORT = Integer.parseInt(System.getProperty("port", "1843"));
+    static final String POLICY_FILE = "socket-policy.xml";
 
     public void init(int port) throws InterruptedException {
-
         NioEventLoopGroup boss = new NioEventLoopGroup(1);
         NioEventLoopGroup worker = new NioEventLoopGroup();
         try {
@@ -38,6 +45,7 @@ public class FlashPolicyServer {
             });
             server.bind(port).sync().channel().closeFuture().sync();
         } finally {
+            CleanUpUtil.deleteFile(POLICY_FILE);
             boss.shutdownGracefully();
             worker.shutdownGracefully();
         }

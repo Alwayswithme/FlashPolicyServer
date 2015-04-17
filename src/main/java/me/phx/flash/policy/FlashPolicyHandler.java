@@ -1,23 +1,17 @@
 package me.phx.flash.policy;
 
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.*;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 
+import java.io.*;
+import java.nio.channels.*;
+
 /**
- * Created by phoenix on 11/9/14.
+ * @author phoenix
  */
 public class FlashPolicyHandler extends SimpleChannelInboundHandler<String> {
-    // TODO use zero copy
-    private static String xml = "<?xml version=\"1.0\"?>" +
-            "<!DOCTYPE cross-domain-policy SYSTEM \"/xml/dtds/cross-domain-policy.dtd\">" +
-            "<cross-domain-policy>"
-            + "<allow-access-from domain=\"*\" to-ports=\"80,8080\"/>"
-            + "</cross-domain-policy>\0";
-
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
@@ -31,15 +25,39 @@ public class FlashPolicyHandler extends SimpleChannelInboundHandler<String> {
     }
 
     private boolean validate(String msg) {
-        return msg.indexOf("<policy-file-request/>") >= 0;
+        return msg.contains("<policy-file-request/>");
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
-        if (validate(msg)) {
-            ctx.writeAndFlush(xml).addListener(ChannelFutureListener.CLOSE);
-        } else {
+    protected void channelRead0(ChannelHandlerContext ctx, String msg) throws IOException {
+        if ("bye".equals(msg)) {
+            ctx.writeAndFlush("Server shutdown \n").addListener(ChannelFutureListener.CLOSE);
+            CleanUpUtil.closeOnFlush(ctx.channel().parent());
+            return;
+        }
+        if (!validate(msg)) {
             ctx.writeAndFlush("Quest Error \0").addListener(ChannelFutureListener.CLOSE);
+        }
+        File policyFile = new File(FlashPolicyServer.POLICY_FILE);
+        if (!policyFile.exists()) {
+            crete(policyFile);
+        }
+        try (FileInputStream fin = new FileInputStream(policyFile)) {
+            FileRegion fileRegion = new DefaultFileRegion(fin.getChannel(), 0, policyFile.length());
+            ctx.writeAndFlush(fileRegion).addListener(ChannelFutureListener.CLOSE);
+        } catch (FileNotFoundException e) {
+            CleanUpUtil.closeOnFlush(ctx.channel());
+            CleanUpUtil.closeOnFlush(ctx.channel().parent());
+        }
+    }
+
+    private void crete(File file) throws IOException {
+        ClassLoader loader = this.getClass().getClassLoader();
+        try (InputStream in = loader.getResourceAsStream("socket-policy.xml");
+             ReadableByteChannel ch = Channels.newChannel(in)) {
+            FileChannel outChannel = new FileOutputStream(file).getChannel();
+            outChannel.transferFrom(ch, 0, in.available());
+
         }
     }
 }
