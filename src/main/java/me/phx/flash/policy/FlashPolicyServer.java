@@ -15,11 +15,15 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * @author phoenix
  */
 public class FlashPolicyServer {
+    private static final Logger log = Logger.getLogger(FlashPolicyServer.class.getName());
+
     static final int PORT = Integer.parseInt(System.getProperty("port", "1843"));
     static final String POLICY_FILE = "socket-policy.xml";
 
@@ -28,23 +32,25 @@ public class FlashPolicyServer {
         NioEventLoopGroup worker = new NioEventLoopGroup();
         try {
             ServerBootstrap server = new ServerBootstrap().group(boss, worker);
-            server.channel(NioServerSocketChannel.class);
+            server.channel(NioServerSocketChannel.class)
+                  .handler(new LoggingHandler(LogLevel.DEBUG));
             server.childHandler(new ChannelInitializer<Channel>() {
                 @Override
                 protected void initChannel(Channel ch) throws Exception {
                     ch.pipeline().addLast(
-                            // 将ByteBuf按NULL字符分割
+                            // divide ByteBuf by NULL char
                             new DelimiterBasedFrameDecoder(1 << 10, Delimiters.nulDelimiter()),
-                            // 读写内容转换为String
+                            // decode ByteBuf to String and encode String to ByteBuf
                             StringCodec.UTF8.getCodec(),
-                            // 触发读超时事件
+                            // trigger read timeout event
                             new IdleStateHandler(3, 0, 0),
-                            // 返回策略文件内容
+                            // response the request
                             new FlashPolicyHandler());
                 }
             });
             server.bind(port).sync().channel().closeFuture().sync();
         } finally {
+            log.log(Level.INFO, "Going to delete policy file");
             CleanUpUtil.deleteFile(POLICY_FILE);
             boss.shutdownGracefully();
             worker.shutdownGracefully();
@@ -52,7 +58,7 @@ public class FlashPolicyServer {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        System.out.println("Server set up on port: " + PORT);
+        log.log(Level.INFO, "Server set up on port: " + PORT);
         new FlashPolicyServer().init(PORT);
     }
 }
