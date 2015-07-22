@@ -27,7 +27,7 @@ public class CleanUpUtil {
     }
 
     public static boolean deleteFile(String fileName) {
-        File file = new File(FlashPolicyServer.POLICY_FILE);
+        File file = new File(fileName);
         return file.exists() && file.delete();
     }
 }
